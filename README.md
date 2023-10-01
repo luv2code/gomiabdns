@@ -39,7 +39,7 @@ miabdns \
     -rtype "CNAME"
 ```
 
-# Using as a the Library
+# Using as a Library
 
 This project was created for use in [github.com/libdns](https://github.com/libdns/libdns) in order to
 create a dns provider for [caddy server](https://caddyserver.com).
