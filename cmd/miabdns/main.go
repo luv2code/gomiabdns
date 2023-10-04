@@ -112,5 +112,7 @@ func printRecords(records []gomiabdns.DNSRecord) {
 		fmt.Fprintf(writer, "%s\t %s\t %s\n", dr.QualifiedName, dr.RecordType, dr.Value)
 	}
 
-	writer.Flush()
+	if err := writer.Flush(); err != nil {
+		fmt.Printf("error flushing tab writer %s\n", err)
+	}
 }
