@@ -1,4 +1,4 @@
-module github.com/luv2code/go-miabdns
+module github.com/luv2code/gomiabdns
 
 go 1.21.0
 

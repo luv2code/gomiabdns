@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	gomiabdns "github.com/luv2code/go-miabdns"
+	"github.com/luv2code/gomiabdns"
 	"golang.org/x/exp/slices"
 )
 
