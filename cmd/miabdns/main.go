@@ -15,21 +15,25 @@ import (
 var email string
 var password string
 var url string
+var totp string
 var command string
 var recordType string
 var recordName string
 var recordValue string
+var zone string
 
-var commands = []string{"list", "add", "update", "delete"}
+var commands = []string{"list", "add", "update", "delete", "zones", "zonefile"}
 
 func init() {
 	flag.StringVar(&command, "command", "list", "the command to perform: "+strings.Join(commands, ","))
 	flag.StringVar(&email, "email", "", "The email address of the admin user")
-	flag.StringVar(&url, "url", "", "The url of the endpoint for dns changes on your Mail-In-A-Box instance. Ex: https://box.mydomain.net/admin/dns/custom")
+	flag.StringVar(&url, "url", "", "The url of the endpoint for the admin API on your Mail-In-A-Box instance. Ex: https://box.mydomain.net/admin")
+	flag.StringVar(&totp, "totp", "", "The secret key to generate a TOTP token with. Only needed when multi factor authentication is enabled")
 	flag.StringVar(&password, "password", "", "The password of the admin user")
 	flag.StringVar(&recordType, "rtype", "", "The record type to act on (optional) defaults to 'A' ")
 	flag.StringVar(&recordName, "rname", "", "The record name to act on")
 	flag.StringVar(&recordValue, "rvalue", "", "The record value to act on")
+	flag.StringVar(&zone, "zone", "", "The zone for which to retrieve the zone file")
 	flag.Parse()
 }
 func main() {
@@ -40,7 +44,7 @@ func main() {
 		fmt.Println("The command argument must be a valid command: " + strings.Join(commands, ","))
 		return
 	}
-	c := gomiabdns.New(url, email, password)
+	c := gomiabdns.New(url, email, password, totp)
 	switch command {
 	case "list":
 		records, err := getRecords(c)
@@ -63,6 +67,21 @@ func main() {
 			panic(err)
 		}
 		fmt.Println("record deleted")
+	case "zones":
+		zones, err := getZones(c)
+		if err != nil {
+			panic(err)
+		}
+		printZones(zones)
+	case "zonefile":
+		if zone == "" {
+			panic(fmt.Errorf("Zone for which to retrieve the zonefile must be provided"))
+		}
+		zonefile, err := getZonefile(c, zone)
+		if err != nil {
+			panic(err)
+		}
+		printZonefile(zonefile, zone)
 	}
 }
 
@@ -115,4 +134,31 @@ func printRecords(records []gomiabdns.DNSRecord) {
 	if err := writer.Flush(); err != nil {
 		fmt.Printf("error flushing tab writer %s\n", err)
 	}
+}
+
+func getZones(c *gomiabdns.Client) ([]gomiabdns.DNSZone, error) {
+	records, err := c.GetZones(context.TODO())
+        if err != nil {
+                return nil, err
+        }
+        return records, nil
+}
+
+func printZones(zones []gomiabdns.DNSZone) {
+	for _, dz := range zones {
+		fmt.Println("Zone: " + dz)
+	}
+}
+
+func getZonefile(c *gomiabdns.Client, zone string) (string, error) {
+	zonefile, err := c.GetZonefile(context.TODO(), zone)
+	if err != nil {
+                return "", err
+        }
+	return zonefile, nil
+}
+
+func printZonefile(zonefile string, zone string) {
+	fmt.Println("Zonefile for zone: " + zone)
+	fmt.Printf(zonefile)
 }
