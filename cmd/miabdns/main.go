@@ -8,19 +8,22 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/luv2code/gomiabdns"
 	"golang.org/x/exp/slices"
+
+	"github.com/luv2code/gomiabdns"
 )
 
-var email string
-var password string
-var url string
-var totp string
-var command string
-var recordType string
-var recordName string
-var recordValue string
-var zone string
+var (
+	email       string
+	password    string
+	url         string
+	totp        string
+	command     string
+	recordType  string
+	recordName  string
+	recordValue string
+	zone        string
+)
 
 var commands = []string{"list", "add", "update", "delete", "zones", "zonefile"}
 
@@ -36,12 +39,17 @@ func init() {
 	flag.StringVar(&zone, "zone", "", "The zone for which to retrieve the zone file")
 	flag.Parse()
 }
+
 func main() {
 	if command == "" {
 		command = "list"
 	}
 	if !slices.Contains(commands, command) {
 		fmt.Println("The command argument must be a valid command: " + strings.Join(commands, ","))
+		return
+	}
+	if url == "" || email == "" || password == "" {
+		fmt.Println("The email, url, and password parameters are all required. see -help")
 		return
 	}
 	c := gomiabdns.New(url, email, password, totp)
@@ -138,10 +146,10 @@ func printRecords(records []gomiabdns.DNSRecord) {
 
 func getZones(c *gomiabdns.Client) ([]gomiabdns.DNSZone, error) {
 	records, err := c.GetZones(context.TODO())
-        if err != nil {
-                return nil, err
-        }
-        return records, nil
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 
 func printZones(zones []gomiabdns.DNSZone) {
@@ -153,8 +161,8 @@ func printZones(zones []gomiabdns.DNSZone) {
 func getZonefile(c *gomiabdns.Client, zone string) (string, error) {
 	zonefile, err := c.GetZonefile(context.TODO(), zone)
 	if err != nil {
-                return "", err
-        }
+		return "", err
+	}
 	return zonefile, nil
 }
 
