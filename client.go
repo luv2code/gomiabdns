@@ -3,17 +3,17 @@ package gomiabdns
 
 import (
 	"context"
-	"encoding/json"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-	
-	"github.com/tidwall/gjson"
+
 	"github.com/pquerna/otp/totp"
+	"github.com/tidwall/gjson"
 )
 
 var apikey string
@@ -44,23 +44,23 @@ const (
 
 // Client provides a target for methods interacting with the DNS API.
 type Client struct {
-	ApiUrl *url.URL
-	email string
-	password string
+	ApiUrl      *url.URL
+	email       string
+	password    string
 	totp_secret string
 }
 
 // New returns a new client ready to call the provided endpoint.
 func New(apiUrl, email, password string, totp_secret string) *Client {
 	parsedUrl, err := url.Parse(apiUrl)
-	
+
 	if err != nil {
 		panic(err)
 	}
 	return &Client{
-		ApiUrl: parsedUrl,
-		email: email,
-		password: password,
+		ApiUrl:      parsedUrl,
+		email:       email,
+		password:    password,
 		totp_secret: totp_secret,
 	}
 }
@@ -137,27 +137,27 @@ func (c *Client) DeleteHost(ctx context.Context, name string, recordType RecordT
 // GetZones returns all zones that the MiaB box is responsible for.
 func (c *Client) GetZones(ctx context.Context) ([]DNSZone, error) {
 	apiUrl := c.ApiUrl.JoinPath("dns", "zones")
-	
-        //fmt.Println("apiUrl: " + apiUrl.String())
-        apiResp, err := c.doRequest(ctx, http.MethodGet, apiUrl.String(), "")
-        if err != nil {
-                return nil, err
-        }
-        return unmarshalZones(apiResp)
+
+	//fmt.Println("apiUrl: " + apiUrl.String())
+	apiResp, err := c.doRequest(ctx, http.MethodGet, apiUrl.String(), "")
+	if err != nil {
+		return nil, err
+	}
+	return unmarshalZones(apiResp)
 }
 
 // GetZonefile returns the zonefile for the indicate zone
 func (c *Client) GetZonefile(ctx context.Context, zone string) (string, error) {
 	apiUrl := c.ApiUrl.JoinPath("dns", "zonefile", zone)
 
-        apiResp, err := c.doRequest(ctx, http.MethodGet, apiUrl.String(), "")
-        if err != nil {
-                return "", err
-        }
-        return string(apiResp), nil
+	apiResp, err := c.doRequest(ctx, http.MethodGet, apiUrl.String(), "")
+	if err != nil {
+		return "", err
+	}
+	return string(apiResp), nil
 }
 
-func (c *Client) doLogin(ctx context.Context) (error) {
+func (c *Client) doLogin(ctx context.Context) error {
 	requestURL := c.ApiUrl.JoinPath("login").String()
 	var r io.Reader
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, r)
@@ -169,8 +169,8 @@ func (c *Client) doLogin(ctx context.Context) (error) {
 		// already logged in
 		return nil
 	}
-	
-	req.Header.Add("Authorization", "Basic " + base64.StdEncoding.EncodeToString([]byte(c.email+":"+c.password)))
+
+	req.Header.Add("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(c.email+":"+c.password)))
 
 	// If totp secret is configured, use it to generate a totp token
 	if c.totp_secret != "" {
@@ -181,22 +181,22 @@ func (c *Client) doLogin(ctx context.Context) (error) {
 		}
 		req.Header.Add("x-auth-token", token)
 	}
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	defer resp.Body.Close()
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	
+
 	bodystr := string(body)
 	status := gjson.Get(bodystr, "status").String()
-	
+
 	if status == "ok" {
 		privileges := gjson.Get(bodystr, "privileges").String()
 		if !strings.Contains(privileges, "admin") {
@@ -214,10 +214,10 @@ func (c *Client) doLogin(ctx context.Context) (error) {
 		err = fmt.Errorf("Unforeseen return value: " + status)
 		return err
 	}
-	
+
 	return nil
 }
-        
+
 func (c *Client) doRequest(ctx context.Context, method, requestURL, value string) ([]byte, error) {
 	var r io.Reader
 	if value != "" {
@@ -228,30 +228,30 @@ func (c *Client) doRequest(ctx context.Context, method, requestURL, value string
 	if err != nil {
 		return nil, fmt.Errorf("Could not login: " + err.Error())
 	}
-	
+
 	if apikey == "" {
 		return nil, fmt.Errorf("Could not login")
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, method, requestURL, r)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Accept", "json")
-	req.Header.Add("Authorization", "Basic " + base64.StdEncoding.EncodeToString([]byte(c.email + ":" + apikey)))
-	
+	req.Header.Add("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(c.email+":"+apikey)))
+
 	resp, err := http.DefaultClient.Do(req)
 	defer resp.Body.Close()
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return body, nil
 }
 
@@ -280,16 +280,16 @@ func unmarshalRecords(data []byte) ([]DNSRecord, error) {
 }
 
 func unmarshalZones(data []byte) ([]DNSZone, error) {
-        var result []DNSZone
-        //fmt.Println(string(data))
-        if err := json.Unmarshal(data, &result); err != nil {
-        	var errorResult APIStatus
-                if err2 := json.Unmarshal(data, &errorResult); err2 != nil {
-                        return nil, err
-                }
-                return nil, fmt.Errorf("Error while decoding json: " + errorResult.Reason)
-        }
-        return result, nil
+	var result []DNSZone
+	//fmt.Println(string(data))
+	if err := json.Unmarshal(data, &result); err != nil {
+		var errorResult APIStatus
+		if err2 := json.Unmarshal(data, &errorResult); err2 != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("Error while decoding json: " + errorResult.Reason)
+	}
+	return result, nil
 }
 
 // DNSRecord represents the host data returned from the API
